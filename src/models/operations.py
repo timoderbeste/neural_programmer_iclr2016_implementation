@@ -7,4 +7,6 @@ class Operation(nn.Module):
         super(Operation, self).__init__()
 
     def forward(self, *input):
-        pass
+        return NotImplementedError()
+    
+    
