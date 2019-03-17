@@ -16,9 +16,9 @@ class QuestionRNN(nn.Module):
     def forward(self, input_question: [int]):
         hidden_state = torch.zeros(self.hidden_dim)
         self.hidden_states.append(hidden_state)
-        hidden_state = None
+        hidden_state = torch.zeros(self.hidden_dim)
         for word_index in input_question:
-            embedded_word = self.word_embedding(word_index)
+            embedded_word = self.word_embedding(torch.tensor(word_index))
             hidden_state = self.tanh(self.input2hidden(torch.cat((hidden_state, embedded_word))))
             self.hidden_states.append(hidden_state)
 

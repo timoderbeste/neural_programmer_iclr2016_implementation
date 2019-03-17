@@ -7,7 +7,6 @@ class Selector(nn.Module):
         super(Selector, self).__init__()
 
         self.hidden_dim = hidden_dim
-        self.num_of_operations = num_of_operations
 
         self.input2operation_hidden = nn.Linear(2 * hidden_dim, hidden_dim)
         self.input2column_hidden = nn.Linear(2 * hidden_dim, hidden_dim)
