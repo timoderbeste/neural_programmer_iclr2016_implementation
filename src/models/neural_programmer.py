@@ -55,10 +55,14 @@ class NeuralProgrammer(nn.Module):
 
             # Calculating row_select
             row_select = torch.zeros(table.size(0))
-            beta_lesser = self.softmax(z_matrix.mm(self.U(torch.tensor(0)).view(10, 1)))
-            l_pivot = sum([beta_lesser[i] * input_question_numbers[i] for i in range(len(input_question_numbers))])
-            beta_greater = self.softmax(z_matrix.mm(self.U(torch.tensor(1)).view(10, 1)))
-            g_pivot = sum([beta_greater[i] * input_question_numbers[i] for i in range(len(input_question_numbers))])
+            if len(input_question_numbers) != 0:
+                beta_lesser = self.softmax(z_matrix.mm(self.U(torch.tensor(0)).view(256, 1)))
+                l_pivot = sum([beta_lesser[i] * input_question_numbers[i] for i in range(len(input_question_numbers))])
+                beta_greater = self.softmax(z_matrix.mm(self.U(torch.tensor(1)).view(256, 1)))
+                g_pivot = sum([beta_greater[i] * input_question_numbers[i] for i in range(len(input_question_numbers))])
+            else:
+                l_pivot = torch.tensor(0.)
+                g_pivot = torch.tensor(0.)
 
             for i in range(table.size(0)):
                 row_select[i] = calc_row_select(i, row_select_past1, row_select_past2, table, l_pivot, g_pivot,
@@ -76,22 +80,39 @@ class NeuralProgrammer(nn.Module):
             lookup_answers.append(lookup_answer)
 
             history_states.append(self.history_rnn(alpha_op, alpha_col, history_state_past1))
-            
+
+        return scalar_answers, lookup_answers
+
+    def eval_step(self, input_question: [int], input_question_numbers: [int], left_word_indices: [int],
+                  table: torch.Tensor):
+        scalar_answers, lookup_answers = self.forward(input_question, input_question_numbers, left_word_indices, table)
+
+        if torch.all(torch.eq(lookup_answers[-1], lookup_answers[-2])):
+            print('predicting scalar answer')
+            return scalar_answers[-1], True
+        else:
+            print('predicting lookup answer')
+            return lookup_answers[-1], False
+
+    def train_step(self, input_question: [int], input_question_numbers: [int], left_word_indices: [int],
+                   table: torch.Tensor):
+        scalar_answers, lookup_answers = self.forward(input_question, input_question_numbers, left_word_indices, table)
         return scalar_answers[-1], lookup_answers[-1]
 
 
-def test():
+def test_forward():
     input_question = [1, 2, 3, 4, 5, 6, 0, 0, 0, 0]
-    input_question_numbers = [1, 2]
-    left_word_indices = [0, 3]
-    table = torch.tensor([[1., 2.], [3., 4.], [5., 6.]])
+    input_question_numbers = []
+    left_word_indices = []
+    table = [[1., 2.], [3., 4.], [5., 6.]]
+    table = torch.tensor(table)
 
-    np = NeuralProgrammer(10, 10, 9, 2, 4)
-    scalar_answer, lookup_answer = np(input_question, input_question_numbers, left_word_indices, table)
+    np = NeuralProgrammer(256, 10, 9, 2, 4)
+    guess, is_scalar = np(input_question, input_question_numbers, left_word_indices, table)
 
-    print(scalar_answer)
-    print(lookup_answer)
+    print(guess)
+    print(is_scalar)
 
 
 if __name__ == '__main__':
-    test()
+    test_forward()

@@ -30,11 +30,11 @@ def l_op(i: int, j: int, table: torch.Tensor, pivot: torch.Tensor):
 
 # Logic operations BEGIN
 def and_op(i: int, row_select_past1: torch.Tensor, row_select_past2: torch.Tensor):
-    return torch.min(row_select_past1[i], row_select_past2[1])
+    return torch.min(row_select_past1[i], row_select_past2[i])
 
 
 def or_op(i: int, row_select_past1: torch.Tensor, row_select_past2: torch.Tensor):
-    return torch.max(row_select_past1[i], row_select_past2[1])
+    return torch.max(row_select_past1[i], row_select_past2[i])
 # Logic operations END
 
 
