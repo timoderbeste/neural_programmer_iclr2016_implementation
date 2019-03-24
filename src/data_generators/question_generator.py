@@ -40,7 +40,7 @@ def generate_single_column_table_sum_greater_answer(table: [[int]], pivot: int):
 
 
 QUESTION_GENERATION_FUNCTIONS = [
-    generate_single_column_table_sum_all,
-    generate_single_column_table_count_all,
+    # generate_single_column_table_sum_all,
+    # generate_single_column_table_count_all,
     generate_single_column_table_sum_greater
 ]

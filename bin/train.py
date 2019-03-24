@@ -40,6 +40,7 @@ def preprocess_data(question_dicts):
     return vocab, preprocessed_questions, all_question_numbers, all_left_word_indices
 
 
+# TODO debug if something went wrong here with the loss function that causes the failure of backward!!!
 def scalar_loss(guess, answer, huber):
     guess = Variable(guess, requires_grad=True)
     answer = Variable(answer)
@@ -76,7 +77,7 @@ def loss_fn(scalar_guess, lookup_guess, answer, is_scalar):
 def main():
     # TODO implement a mini-batch technique for training
     # file_name = '../../data/single_column_dataset_1000000.txt'
-    file_name = '../../data/single_column_dataset.txt'
+    file_name = '../data/single_column_dataset.txt'
     print('Loading dataset...')
     with open(file_name, 'r') as f:
         question_dicts = json.load(f)

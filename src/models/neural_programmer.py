@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.autograd import Variable
 
 from src.models.question_rnn import QuestionRNN
 from src.models.selector import Selector
@@ -70,8 +71,9 @@ class NeuralProgrammer(nn.Module):
             row_selects.append(row_select)
 
             # Calculating the scalar answer and lookup answer
-            scalar_answers.append(calc_scalar_answer(row_select_past1, scalar_output_past3, scalar_output_past1,
-                                                     table, alpha_op))
+            scalar_answer = calc_scalar_answer(row_select_past1, scalar_output_past3, scalar_output_past1,
+                                               table, alpha_op)
+            scalar_answers.append(scalar_answer)
 
             # TODO needs to check if it is okay to do this... If this will break a graph
             lookup_answer = torch.zeros(table.size(0), table.size(1))
@@ -80,32 +82,35 @@ class NeuralProgrammer(nn.Module):
                     lookup_answer[i][j] = calc_lookup_answer(i, j, row_select, alpha_col, alpha_op)
             lookup_answers.append(lookup_answer)
 
-            history_states.append(self.history_rnn(alpha_op, alpha_col, history_state_past1))
+            history_state = self.history_rnn(alpha_op, alpha_col, history_state_past1)
+            history_states.append(history_state)
 
-        if mode == 'train':
-            return scalar_answers[-1], lookup_answers[-1]
-        elif mode == 'eval':
-            if torch.all(torch.eq(lookup_answers[-1], lookup_answers[-2])):
-                print('predicting scalar answer')
-                return scalar_answers[-1], True
-            else:
-                print('predicting lookup answer')
-                return lookup_answers[-1], False
+        return scalar_answers[-1], lookup_answers[-1]
+
+        # if mode == 'train':
+        #     return scalar_answers[-1], lookup_answers[-1]
+        # elif mode == 'eval':
+        #     if torch.all(torch.eq(lookup_answers[-1], lookup_answers[-2])):
+        #         print('predicting scalar answer')
+        #         return scalar_answers[-1], True
+        #     else:
+        #         print('predicting lookup answer')
+        #         return lookup_answers[-1], False
 
 
-def test_forward():
+def test_backward():
     input_question = [1, 2, 3, 4, 5, 6, 0, 0, 0, 0]
     input_question_numbers = []
     left_word_indices = []
-    table = [[1., 2.], [3., 4.], [5., 6.]]
+    table = [[1.], [3.], [5.]]
     table = torch.tensor(table)
 
-    np = NeuralProgrammer(256, 10, 9, 2, 4)
-    guess, is_scalar = np('train', input_question, input_question_numbers, left_word_indices, table)
-
-    print(guess)
-    print(is_scalar)
+    np = NeuralProgrammer(256, 10, 9, 1, 4)
+    scalar_answer, lookup_answer = np('train', input_question, input_question_numbers, left_word_indices, table)
+    print(scalar_answer)
+    scalar_answer.backward()
+    print(list(np.parameters())[0].grad)
 
 
 if __name__ == '__main__':
-    test_forward()
+    test_backward()
