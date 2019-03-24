@@ -1,22 +1,24 @@
+import json
+
 import torch
 from torch.autograd import Variable
 
 from src.models.neural_programmer import NeuralProgrammer
 from src.models.operations import OPERATIONS
-from src.data_generators.generate_datasets import generate_single_column_table_dataset
 from src.utils import is_number
 
 
-def preprocess_data(data):
+def preprocess_data(question_dicts):
     preprocessed_questions = []
     all_question_numbers = []
     all_left_word_indices = []
 
     vocab = dict()
 
-    for _, question, _ in data:
+    for question_dict in question_dicts:
         question_numbers = []
         left_word_indices = []
+        question = question_dict['question']
         question = question.split()
         for i in range(len(question)):
             if is_number(question[i]):
@@ -72,28 +74,39 @@ def loss_fn(scalar_guess, lookup_guess, answer, is_scalar):
 
 
 def main():
-
     # TODO implement a mini-batch technique for training
-    tables, data = generate_single_column_table_dataset(100000, 1, 20)
+    # file_name = '../../data/single_column_dataset_1000000.txt'
+    file_name = '../../data/single_column_dataset.txt'
+    print('Loading dataset...')
+    with open(file_name, 'r') as f:
+        question_dicts = json.load(f)
+
+    print('Pre-processing the questions...')
     vocab, preprocessed_questions, all_question_numbers, all_left_word_indices = \
-        preprocess_data(data)
+        preprocess_data(question_dicts)
 
     model = NeuralProgrammer(256, len(vocab), len(OPERATIONS), 1, 4)
-    optimizer = torch.optim.Adam(model.parameters())
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
-    for i in range(len(preprocessed_questions)):
-        preprocessed_question = torch.tensor(preprocessed_questions[i])
-        question_numbers = torch.tensor(all_question_numbers[i])
-        left_word_indices = torch.tensor(all_left_word_indices[i])
-        answer, is_scalar = torch.tensor(data[i][2][0]), torch.tensor(data[i][2][1])
-        table = torch.tensor(tables[data[i][0]]).t()
+    print('Starting to train...')
+    for epoch in range(1000):
+        total_loss = 0.0
+        for i in range(len(preprocessed_questions)):
+            preprocessed_question = preprocessed_questions[i]
+            question_numbers = all_question_numbers[i]
+            left_word_indices = all_left_word_indices[i]
+            answer = Variable(torch.tensor(question_dicts[i]['answer']))
+            is_scalar = torch.tensor(question_dicts[i]['answer_type'])
+            table = Variable(torch.tensor(question_dicts[i]['table']).t())
 
-        model.zero_grad()
-        scalar_guess, lookup_guess = model.train_step(preprocessed_question, question_numbers, left_word_indices, table)
-        loss = loss_fn(scalar_guess, lookup_guess, answer, is_scalar)
-        print(loss)
-        loss.backward()
-        optimizer.step()
+            scalar_guess, lookup_guess = model('train', preprocessed_question, question_numbers, left_word_indices, table)
+            loss = loss_fn(scalar_guess, lookup_guess, answer, is_scalar)
+            total_loss += loss
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+        print(('avg loss at epoch %d: ' % epoch), total_loss / len(preprocessed_question))
 
 
 if __name__ == '__main__':

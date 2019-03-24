@@ -21,7 +21,7 @@ class NeuralProgrammer(nn.Module):
         self.U = nn.Embedding(2, hidden_size)
         self.softmax = nn.Softmax(dim=0)
 
-    def forward(self, input_question: [int], input_question_numbers: [int], left_word_indices: [int],
+    def forward(self, mode: str, input_question: [int], input_question_numbers: [int], left_word_indices: [int],
                 table: torch.Tensor):
         # initializing the values at t = 0
         history_states = [torch.zeros(self.hidden_size)]
@@ -73,6 +73,7 @@ class NeuralProgrammer(nn.Module):
             scalar_answers.append(calc_scalar_answer(row_select_past1, scalar_output_past3, scalar_output_past1,
                                                      table, alpha_op))
 
+            # TODO needs to check if it is okay to do this... If this will break a graph
             lookup_answer = torch.zeros(table.size(0), table.size(1))
             for i in range(table.size(0)):
                 for j in range(table.size(1)):
@@ -81,23 +82,15 @@ class NeuralProgrammer(nn.Module):
 
             history_states.append(self.history_rnn(alpha_op, alpha_col, history_state_past1))
 
-        return scalar_answers, lookup_answers
-
-    def eval_step(self, input_question: [int], input_question_numbers: [int], left_word_indices: [int],
-                  table: torch.Tensor):
-        scalar_answers, lookup_answers = self.forward(input_question, input_question_numbers, left_word_indices, table)
-
-        if torch.all(torch.eq(lookup_answers[-1], lookup_answers[-2])):
-            print('predicting scalar answer')
-            return scalar_answers[-1], True
-        else:
-            print('predicting lookup answer')
-            return lookup_answers[-1], False
-
-    def train_step(self, input_question: [int], input_question_numbers: [int], left_word_indices: [int],
-                   table: torch.Tensor):
-        scalar_answers, lookup_answers = self.forward(input_question, input_question_numbers, left_word_indices, table)
-        return scalar_answers[-1], lookup_answers[-1]
+        if mode == 'train':
+            return scalar_answers[-1], lookup_answers[-1]
+        elif mode == 'eval':
+            if torch.all(torch.eq(lookup_answers[-1], lookup_answers[-2])):
+                print('predicting scalar answer')
+                return scalar_answers[-1], True
+            else:
+                print('predicting lookup answer')
+                return lookup_answers[-1], False
 
 
 def test_forward():
@@ -108,7 +101,7 @@ def test_forward():
     table = torch.tensor(table)
 
     np = NeuralProgrammer(256, 10, 9, 2, 4)
-    guess, is_scalar = np(input_question, input_question_numbers, left_word_indices, table)
+    guess, is_scalar = np('train', input_question, input_question_numbers, left_word_indices, table)
 
     print(guess)
     print(is_scalar)

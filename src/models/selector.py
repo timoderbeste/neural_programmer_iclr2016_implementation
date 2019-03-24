@@ -3,6 +3,7 @@ import torch.nn as nn
 
 
 class Selector(nn.Module):
+    # TODO check if the graph is working in this one!
     def __init__(self, hidden_dim: int, num_of_operations: int, num_of_columns: int):
         super(Selector, self).__init__()
 
