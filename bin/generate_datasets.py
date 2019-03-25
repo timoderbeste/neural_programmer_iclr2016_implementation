@@ -1,12 +1,22 @@
 import json
+import sys
+import os
+path = os.path.join(os.path.dirname(__file__), os.pardir)
+sys.path.append(path)
 import argparse
+
+
 import src.data_generators.dataset_generator as dg
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generate dataset of a specific type.')
-    parser.add_argument('template_type', type=str, help='The type of the template to generate. Supported ones are: single_column.')
-    parser.add_argument('size', type=int, help='The size of the dataset to be generated.')
-    parser.add_argument('save_file_path', type=str, help='The name of the file to store the dataset.')
+    parser.add_argument('template_type', type=str,
+                        help='The type of the template to generate. Supported ones are: single_column.')
+    parser.add_argument('size', type=int,
+                        help='The size of the dataset to be generated.')
+    parser.add_argument('save_file_path', type=str,
+                        help='The name of the file to store the dataset.')
     args = parser.parse_args()
 
     if args.template_type == 'single_column':

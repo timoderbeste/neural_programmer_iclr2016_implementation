@@ -1,6 +1,10 @@
 import torch
 
 
+# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cpu')
+
+
 # Aggregate operations BEGIN
 def sum_op(row_select: torch.Tensor, table: torch.Tensor, j: int):
     # TODO the type of j can be erroneous.
@@ -8,7 +12,7 @@ def sum_op(row_select: torch.Tensor, table: torch.Tensor, j: int):
 
 
 def count_op(row_select: torch.Tensor):
-    return row_select.sum(0)
+    return sum([row_select[i] for i in range(row_select.size(0))])
 # Aggregate operations END
 
 
@@ -46,7 +50,7 @@ def assign_op(i: int, row_select: torch.Tensor):
 
 # Reset operations BEGIN
 def reset_op():
-    return 1.
+    return torch.tensor(1.).to(device)
 # Reset operations END
 
 
@@ -62,9 +66,9 @@ Sum, Count, Difference, Greater, Lesser, And, Or, assign, Reset
 
 
 def calc_scalar_answer(row_select: torch.Tensor, scalar_output_past3: torch.Tensor, scalar_output_past1: torch.Tensor,
-                       table: torch.Tensor, alpha_op: torch.Tensor):
+                       table: torch.Tensor, alpha_op: torch.Tensor, alpha_col: torch.Tensor):
     return alpha_op[1] * count_op(row_select) + alpha_op[2] * diff_op(scalar_output_past3, scalar_output_past1) + \
-        alpha_op[0] * sum([sum_op(row_select, table, j) for j in range(table.size(1))])
+        alpha_op[0] * sum([alpha_col[j] * sum_op(row_select, table, j) for j in range(table.size(1))])
 
 
 # TODO: figure out how this assignment actually works. It does not appear to select which column from the table to be
@@ -80,6 +84,6 @@ def calc_row_select(i: int, row_select_past1: torch.Tensor, row_select_past2: to
     return alpha_op[5] * and_op(i, row_select_past1, row_select_past2) + \
         alpha_op[6] * or_op(i, row_select_past1, row_select_past2) + \
         alpha_op[8] * reset_op() + \
-        sum(alpha_col[j] * (alpha_op[3] * g_op(i, j, table, g_pivot) + alpha_op[4] * l_op(i, j, table, l_pivot))
-            for j in range(table.size(1)))
+        sum([alpha_col[j] * (alpha_op[3] * g_op(i, j, table, g_pivot) + alpha_op[4] * l_op(i, j, table, l_pivot))
+            for j in range(table.size(1))])
 # Variables calculators END

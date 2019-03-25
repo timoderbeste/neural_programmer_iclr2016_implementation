@@ -1,47 +1,18 @@
 import json
 
+import tqdm
 import torch
-from torch.autograd import Variable
 
 from src.models.neural_programmer import NeuralProgrammer
 from src.models.operations import OPERATIONS
-from src.utils import is_number
+from src.utils import build_vocab, preprocess_data
 
-
-def preprocess_data(question_dicts):
-    preprocessed_questions = []
-    all_question_numbers = []
-    all_left_word_indices = []
-
-    vocab = dict()
-
-    for question_dict in question_dicts:
-        question_numbers = []
-        left_word_indices = []
-        question = question_dict['question']
-        question = question.split()
-        for i in range(len(question)):
-            if is_number(question[i]):
-                # Assume that number will never occurs at the first place.
-                question_numbers.append(int(question[i]))
-                question[i] = 'NUM'
-                left_word_indices.append(i - 1)
-
-        all_question_numbers.append(question_numbers)
-        all_left_word_indices.append(left_word_indices)
-
-        preprocessed_question = []
-        for token in question:
-            if token not in vocab:
-                vocab[token] = len(vocab)
-            preprocessed_question.append(vocab[token])
-        preprocessed_questions.append(preprocessed_question)
-
-    return vocab, preprocessed_questions, all_question_numbers, all_left_word_indices
+# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cpu')
 
 
 def scalar_loss(guess, answer, huber):
-    huber = torch.tensor(huber)
+    huber = torch.tensor(huber).to(device)
 
     a = abs(guess - answer)
     if a <= huber:
@@ -69,32 +40,37 @@ def loss_fn(scalar_guess, lookup_guess, answer, is_scalar):
 
 def main():
     # TODO implement a mini-batch technique for training
-    # file_name = '../../data/single_column_dataset_1000000.txt'
-    file_name = '../data/single_column_dataset.txt'
     print('Loading dataset...')
+    file_name = '../data/training_set.txt'
     with open(file_name, 'r') as f:
         question_dicts = json.load(f)
 
     print('Pre-processing the questions...')
-    vocab, preprocessed_questions, all_question_numbers, all_left_word_indices = \
-        preprocess_data(question_dicts)
+    vocab = build_vocab(question_dicts)
+    with open('../data/vocab.txt', 'w') as f:
+        json.dump(vocab, f)
+
+    preprocessed_questions, all_question_numbers, all_left_word_indices = \
+        preprocess_data(vocab, question_dicts)
 
     model = NeuralProgrammer(256, len(vocab), len(OPERATIONS), 1, 4)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    model.to(device)
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
     print('Starting to train...')
-    for epoch in range(1000):
+    for epoch in range(10):
         total_loss = 0.0
-        for i in range(len(preprocessed_questions)):
+        for i in tqdm.tqdm(range(len(preprocessed_questions))):
             preprocessed_question = preprocessed_questions[i]
             question_numbers = all_question_numbers[i]
             left_word_indices = all_left_word_indices[i]
-            answer = torch.tensor(question_dicts[i]['answer'])
+            answer = torch.tensor(question_dicts[i]['answer']).to(device)
             # is_scalar = torch.tensor(question_dicts[i]['answer_type'])
-            table = torch.tensor(question_dicts[i]['table']).t()
+            table = torch.tensor(question_dicts[i]['table']).t().to(device)
 
-            scalar_guess, lookup_guess = model('train', preprocessed_question, question_numbers, left_word_indices, table)
-            # loss = loss_fn(scalar_guess, lookup_guess, answer, is_scalar)
+            scalar_guess, lookup_guess = model(preprocessed_question, question_numbers, left_word_indices, table,
+                                               mode='train')
             loss = scalar_loss(scalar_guess, answer, 10.)
             total_loss += loss
 
@@ -102,6 +78,12 @@ def main():
             loss.backward()
             optimizer.step()
         print(('avg loss at epoch %d: ' % epoch), total_loss / len(preprocessed_question))
+
+        if epoch % 5 == 0 and epoch != 0:
+            print('Saving model at epoch %d' % epoch)
+            torch.save(model, '../models/trained_model_epoch%d.pt' % epoch)
+
+    torch.save(model, '../models/trained_model.pt')
 
 
 if __name__ == '__main__':
