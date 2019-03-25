@@ -40,11 +40,8 @@ def preprocess_data(question_dicts):
     return vocab, preprocessed_questions, all_question_numbers, all_left_word_indices
 
 
-# TODO debug if something went wrong here with the loss function that causes the failure of backward!!!
 def scalar_loss(guess, answer, huber):
-    guess = Variable(guess, requires_grad=True)
-    answer = Variable(answer)
-    huber = Variable(torch.tensor(huber))
+    huber = torch.tensor(huber)
 
     a = abs(guess - answer)
     if a <= huber:
@@ -55,19 +52,15 @@ def scalar_loss(guess, answer, huber):
 
 def lookup_loss(guess: torch.Tensor, answer: torch.Tensor):
     assert guess.size() == answer.size()
-    guess = Variable(guess, requires_grad=True)
-    answer = Variable(answer)
 
-    print([answer[i] * torch.log(guess[i]) +
-           (torch.log(Variable(torch.tensor(1.))) - answer[i]) * torch.log(Variable(torch.tensor(1.))) - guess[i]
-           for i in range(answer.size(0))])
-
-    if answer.dim() == 1:
-        return (-1 / torch.tensor(answer.size(0), dtype=torch.float)) * sum(
-            [answer[i] * torch.log(guess[i]) +
-             (torch.log(Variable(torch.tensor(1.))) - answer[i]) * torch.log(Variable(torch.tensor(1.))) - guess[i]
-             for i in range(answer.size(0))]
-        )
+    return (-1 / (torch.tensor(answer.size(0), dtype=torch.float)) * (
+        torch.tensor(answer.size(1), dtype=torch.float))) * sum(
+        [
+            answer[i][j] * torch.log(guess[i][j] + torch.tensor(0.00000001)) +
+            (torch.tensor(1.) - answer[i][j]) * torch.log(torch.tensor(1.) - guess[i][j])
+            for j in range(answer.size(1)) for i in range(answer.size(0))
+        ]
+    )
 
 
 def loss_fn(scalar_guess, lookup_guess, answer, is_scalar):
@@ -96,12 +89,13 @@ def main():
             preprocessed_question = preprocessed_questions[i]
             question_numbers = all_question_numbers[i]
             left_word_indices = all_left_word_indices[i]
-            answer = Variable(torch.tensor(question_dicts[i]['answer']))
-            is_scalar = torch.tensor(question_dicts[i]['answer_type'])
-            table = Variable(torch.tensor(question_dicts[i]['table']).t())
+            answer = torch.tensor(question_dicts[i]['answer'])
+            # is_scalar = torch.tensor(question_dicts[i]['answer_type'])
+            table = torch.tensor(question_dicts[i]['table']).t()
 
             scalar_guess, lookup_guess = model('train', preprocessed_question, question_numbers, left_word_indices, table)
-            loss = loss_fn(scalar_guess, lookup_guess, answer, is_scalar)
+            # loss = loss_fn(scalar_guess, lookup_guess, answer, is_scalar)
+            loss = scalar_loss(scalar_guess, answer, 10.)
             total_loss += loss
 
             optimizer.zero_grad()

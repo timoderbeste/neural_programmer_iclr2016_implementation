@@ -26,7 +26,7 @@ class NeuralProgrammer(nn.Module):
                 table: torch.Tensor):
         # initializing the values at t = 0
         history_states = [torch.zeros(self.hidden_size)]
-        scalar_answers = [torch.tensor(0)]
+        scalar_answers = [torch.tensor(0.)]
         lookup_answers = [torch.zeros(table.size(0), table.size(1))]
         row_selects = [torch.ones(table.size(0))]
         z_matrix = torch.zeros(len(input_question_numbers), self.hidden_size)
@@ -39,7 +39,7 @@ class NeuralProgrammer(nn.Module):
         question_hidden_states = self.question_rnn.hidden_states
 
         for i in range(len(input_question_numbers)):
-            z_matrix[i] = question_hidden_states[left_word_indices[i]]
+            z_matrix[i] = question_hidden_states[int(left_word_indices[i])]
 
         for t in range(1, self.num_time_steps + 1):
             # Preparing the useful values
@@ -85,17 +85,13 @@ class NeuralProgrammer(nn.Module):
             history_state = self.history_rnn(alpha_op, alpha_col, history_state_past1)
             history_states.append(history_state)
 
-        return scalar_answers[-1], lookup_answers[-1]
-
-        # if mode == 'train':
-        #     return scalar_answers[-1], lookup_answers[-1]
-        # elif mode == 'eval':
-        #     if torch.all(torch.eq(lookup_answers[-1], lookup_answers[-2])):
-        #         print('predicting scalar answer')
-        #         return scalar_answers[-1], True
-        #     else:
-        #         print('predicting lookup answer')
-        #         return lookup_answers[-1], False
+        if mode == 'train':
+            return scalar_answers[-1], lookup_answers[-1]
+        elif mode == 'eval':
+            if torch.all(torch.eq(lookup_answers[-1], lookup_answers[-2])):
+                return scalar_answers[-1], True
+            else:
+                return lookup_answers[-1], False
 
 
 def test_backward():

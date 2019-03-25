@@ -20,11 +20,11 @@ def diff_op(scalar_output_past3: torch.Tensor, scalar_output_past1: torch.Tensor
 
 # Comparison operations BEGIN
 def g_op(i: int, j: int, table: torch.Tensor, pivot: torch.Tensor):
-    return table[i][j] > pivot
+    return torch.tensor(1.) if table[i][j] > pivot else torch.tensor(0.)
 
 
 def l_op(i: int, j: int, table: torch.Tensor, pivot: torch.Tensor):
-    return table[i][j] < pivot
+    return torch.tensor(1.) if table[i][j] < pivot else torch.tensor(0.)
 # Comparison operations END
 
 
@@ -46,7 +46,7 @@ def assign_op(i: int, row_select: torch.Tensor):
 
 # Reset operations BEGIN
 def reset_op():
-    return 1
+    return 1.
 # Reset operations END
 
 
